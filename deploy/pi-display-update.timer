@@ -1,0 +1,10 @@
+# Runs the update check 2 minutes after boot, then every 5 minutes.
+[Unit]
+Description=Pi Display auto-update timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

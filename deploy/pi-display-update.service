@@ -1,0 +1,11 @@
+# Checks GitHub for new code. Triggered by pi-display-update.timer.
+[Unit]
+Description=Pi Display auto-update check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=__DIR__/deploy/update.sh

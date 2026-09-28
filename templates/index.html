@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Pi Display</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+</head>
+<body>
+  <main id="display">
+    {% for name in widgets %}
+    <section class="widget" id="widget-{{ name }}" data-widget="{{ name }}"></section>
+    {% endfor %}
+  </main>
+
+  <script>window.DISPLAY_CONFIG = {{ client_config | tojson }};</script>
+  <script src="{{ url_for('static', filename='app.js') }}?v={{ version }}"></script>
+  {% for name in widgets %}
+  <script src="{{ url_for('static', filename='widgets/' ~ name ~ '.js') }}?v={{ version }}"></script>
+  {% endfor %}
+  <script>Display.start();</script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+/* Sizes use vmin (a % of the shorter screen side), so the layout scales to
+   any touchscreen: 800x480, 1280x720, portrait or landscape. */
+
+:root {
+  --bg: #0b0f17;
+  --fg: #e8edf5;
+  --muted: #8a94a6;
+  --accent: #6cb4ff;
+  --card: #141a26;
+  --hi: #ffb86b;
+  --lo: #6cb4ff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", "Segoe UI", "Roboto", "DejaVu Sans", sans-serif;
+  overflow: hidden;
+  cursor: none;               /* no mouse pointer on the touchscreen */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation; /* no double-tap zoom */
+}
+
+#display {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 3vmin;
+  padding: 4vmin 5vmin;
+}
+
+.widget { transition: opacity 0.4s; }
+.widget.stale { opacity: 0.5; }   /* data is out of date (e.g. Wi-Fi down) */
+.error { color: var(--muted); font-size: 4vmin; text-align: center; }
+
+/* ---------- Clock ---------- */
+#widget-clock { text-align: center; }
+
+.clock-time {
+  font-size: 30vmin;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.clock-suffix {
+  font-size: 7vmin;
+  margin-left: 2vmin;
+  color: var(--muted);
+}
+.clock-date {
+  font-size: 6vmin;
+  color: var(--muted);
+  margin-top: 1vmin;
+}
+
+/* ---------- Weather ---------- */
+.wx-now {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4vmin;
+}
+.wx-icon { font-size: 15vmin; line-height: 1; }
+.wx-temp { font-size: 13vmin; font-weight: 400; line-height: 1; }
+.wx-desc { font-size: 5vmin; color: var(--muted); }
+.wx-details {
+  font-size: 3.6vmin;
+  color: var(--muted);
+  line-height: 1.5;
+  border-left: 1px solid #2a3244;
+  padding-left: 4vmin;
+}
+.wx-location { color: var(--accent); }
+
+.wx-forecast {
+  display: flex;
+  justify-content: space-between;
+  gap: 2vmin;
+  margin-top: 3vmin;
+}
+.fc-day {
+  flex: 1;
+  background: var(--card);
+  border-radius: 2vmin;
+  padding: 2vmin 1vmin;
+  text-align: center;
+}
+.fc-label { font-size: 3.6vmin; color: var(--muted); }
+.fc-icon  { font-size: 7vmin; margin: 0.5vmin 0; }
+.fc-temps { font-size: 4vmin; }
+.fc-temps .hi { color: var(--hi); }
+.fc-temps .lo { color: var(--lo); }
+.fc-precip { font-size: 3vmin; color: var(--muted); min-height: 3.6vmin; }
+.fc-temps { white-space: nowrap; }
+
+/* Portrait screens: forecast cards are narrow, so stack high over low */
+@media (orientation: portrait) {
+  .fc-temps span { display: block; }
+}
+
+/* ---------- Orion (small sky map in the top-right corner; tap to enlarge) ---------- */
+#widget-orion {
+  position: absolute;     /* sits in the corner instead of taking a row */
+  top: 3vmin;
+  right: 3vmin;
+  width: 20vmin;
+  text-align: center;
+  z-index: 5;
+}
+#widget-orion .orion-dome { width: 100%; height: auto; display: block; }
+.orion-title  { font-size: 2.8vmin; margin-top: 0.5vmin; }
+.orion-status { font-size: 2.4vmin; color: var(--muted); line-height: 1.2; white-space: nowrap; }
+
+.sky-bg          { fill: #1b2436; }        /* daytime sky */
+.sky-bg.dark     { fill: #070a12; }        /* night sky */
+.sky-ring        { fill: none; stroke: #2a3244; stroke-width: 0.8; stroke-dasharray: 3 3; }
+.sky-horizon     { fill: none; stroke: #3a455c; stroke-width: 1.5; }
+.sky-dir         { fill: var(--muted); font-size: 16px; text-anchor: middle; }
+.sky-sun         { fill: #ffd76b; }
+.orion-ring      { fill: none; stroke: var(--hi); stroke-width: 2; opacity: 0.8; }
+.orion-line      { stroke: var(--accent); stroke-width: 1; opacity: 0.6; }
+.orion-line.thick{ stroke-width: 2; }
+.orion-star      { fill: var(--fg); }
+.orion-star.red  { fill: #ffb27a; }        /* Betelgeuse is orange-red */
+.orion-star.blue { fill: #b8d4ff; }        /* Rigel is blue-white */
+.orion-label     { fill: var(--muted); font-size: 9px; }
+.orion-rise      { fill: none; stroke: var(--hi); stroke-width: 2; }
+.view-ground     { fill: #10151f; }
+.view-tick       { fill: #5d677a; font-size: 8px; }
+.view-dir        { fill: #5d677a; font-size: 9px; text-anchor: middle; }
+.view-dir.main   { fill: var(--fg); font-size: 11px; }
+
+/* Full-screen view after a tap */
+#widget-orion.expanded {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  z-index: 50;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  gap: 4vmin;
+  padding: 4vmin;
+}
+#widget-orion.expanded .orion-main { flex: 1.5; min-width: 0; }
+#widget-orion.expanded .orion-view { width: 100%; height: auto; display: block; border-radius: 1.5vmin; }
+#widget-orion.expanded .orion-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2vmin;
+}
+#widget-orion.expanded .orion-dome { width: 34vmin; height: 34vmin; }
+.orion-info      { text-align: left; font-size: 3.4vmin; line-height: 1.5; color: var(--muted); }
+.orion-heading   { font-size: 6vmin; color: var(--fg); line-height: 1.2; }
+.orion-big       { font-size: 4.4vmin; color: var(--fg); margin-bottom: 0.5vmin; }
+.orion-note      { font-size: 2.8vmin; opacity: 0.8; }
+
+@media (orientation: portrait) {
+  #widget-orion.expanded { flex-direction: column; justify-content: center; }
+  #widget-orion.expanded .orion-main { flex: none; width: 100%; }
+  #widget-orion.expanded .orion-side { flex: none; flex-direction: row; align-items: center; width: 100%; }
+  #widget-orion.expanded .orion-dome { width: 38vmin; height: 38vmin; flex: none; }
+}
