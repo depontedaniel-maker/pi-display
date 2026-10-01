@@ -170,3 +170,14 @@ html, body {
   #widget-orion.expanded .orion-side { flex: none; flex-direction: row; align-items: center; width: 100%; }
   #widget-orion.expanded .orion-dome { width: 38vmin; height: 38vmin; flex: none; }
 }
+
+/* ---------- Screen sleep ---------- */
+/* Black cover while asleep. On the Pi the backlight is off too; on a laptop
+   or HDMI screen this cover is all you'll see. */
+body.asleep::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+}

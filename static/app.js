@@ -60,7 +60,57 @@
     }
   }
 
+  // ---------- Screen sleep ----------
+  // Between SCREEN_SLEEP times (config.py) the backlight turns off and the
+  // page goes black. A tap wakes it for SCREEN_WAKE_SECONDS; that first tap
+  // only wakes the screen and doesn't reach the widgets.
+  const sleep = { asleep: null, wakeUntil: 0 };
+
+  const toMinutes = (hhmm) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  function inSleepHours(now) {
+    if (!cfg.screenSleep) return false;
+    const [start, end] = cfg.screenSleep.map(toMinutes);
+    if (start === end) return false;
+    const t = now.getHours() * 60 + now.getMinutes();
+    // e.g. 23:00-07:00 wraps past midnight
+    return start < end ? t >= start && t < end : t >= start || t < end;
+  }
+
+  function setAsleep(asleep) {
+    if (sleep.asleep === asleep) return;
+    sleep.asleep = asleep;
+    document.body.classList.toggle("asleep", asleep);
+    fetch("/api/screen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on: !asleep }),
+    }).catch(() => {});
+  }
+
+  function checkSleep() {
+    setAsleep(inSleepHours(new Date()) && Date.now() > sleep.wakeUntil);
+  }
+
+  // Capture phase: runs before any widget sees the tap
+  document.addEventListener("click", (e) => {
+    if (!inSleepHours(new Date())) return;
+    const wasAsleep = sleep.asleep;
+    sleep.wakeUntil = Date.now() + (cfg.screenWakeSeconds || 60) * 1000;
+    if (wasAsleep) {
+      e.stopPropagation();
+      e.preventDefault();
+      checkSleep();
+    }
+  }, true);
+
   function start() {
+    checkSleep();
+    setInterval(checkSleep, 15 * 1000);
+
     Object.keys(widgets).forEach((name) => {
       const def = widgets[name];
       const el = document.getElementById("widget-" + name);

@@ -9,9 +9,10 @@ import subprocess
 import time
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, render_template
+from flask import Flask, abort, jsonify, render_template, request
 
 import config
+import screen
 import widgets
 
 BASE = Path(__file__).resolve().parent
@@ -50,6 +51,9 @@ def index():
         "units": config.UNITS,
         "latitude": config.LATITUDE,
         "longitude": config.LONGITUDE,
+        # getattr: older config.py files without these lines just never sleep
+        "screenSleep": getattr(config, "SCREEN_SLEEP", None),
+        "screenWakeSeconds": getattr(config, "SCREEN_WAKE_SECONDS", 60),
     }
     return render_template(
         "index.html",
@@ -62,6 +66,13 @@ def index():
 @app.route("/api/version")
 def version():
     return jsonify(version=VERSION)
+
+
+@app.route("/api/screen", methods=["POST"])
+def screen_power():
+    """The page calls this to turn the backlight off at night and on again."""
+    on = bool((request.get_json(silent=True) or {}).get("on", True))
+    return jsonify(on=on, backlight=screen.set_backlight(on))
 
 
 @app.route("/api/widget/<name>")

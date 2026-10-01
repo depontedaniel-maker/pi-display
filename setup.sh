@@ -44,9 +44,17 @@ echo "$USER_NAME ALL=(root) NOPASSWD: /usr/bin/systemctl restart pi-display.serv
 sudo chmod 440 /etc/sudoers.d/pi-display
 sudo visudo -cf /etc/sudoers.d/pi-display >/dev/null
 
+echo "==> Allowing the display to switch the screen's backlight (for night sleep)"
+sudo usermod -aG video "$USER_NAME"
+echo 'SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/bl_power", RUN+="/bin/chmod g+w /sys/class/backlight/%k/bl_power"' \
+  | sudo tee /etc/udev/rules.d/99-pi-display-backlight.rules >/dev/null
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=backlight || true
+
 sudo systemctl daemon-reload
 sudo systemctl enable --now pi-display.service
 sudo systemctl enable --now pi-display-update.timer
+sudo systemctl restart pi-display.service   # pick up any changes when re-run
 
 echo "==> Launching the display full screen at login"
 mkdir -p "$HOME/.config/autostart"

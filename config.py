@@ -20,5 +20,10 @@ CLOCK_12_HOUR = True
 # from the internet, a widgets/<name>.py file too.
 WIDGETS = ["clock", "weather", "orion"]
 
+# Screen sleep: the screen turns off between these times (24-hour clock).
+# Tap it to wake it for SCREEN_WAKE_SECONDS. Use SCREEN_SLEEP = None to never sleep.
+SCREEN_SLEEP = ("21:00", "07:00")
+SCREEN_WAKE_SECONDS = 60
+
 # Port the local web server runs on
 PORT = 5050

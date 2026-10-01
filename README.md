@@ -75,6 +75,10 @@ Everything you'd normally change is in `config.py`: location, °C/°F,
 
 Tapping the clock switches between 12- and 24-hour.
 
+**Screen sleep:** between the `SCREEN_SLEEP` times in `config.py` (default
+11 p.m. to 7 a.m.) the screen turns off. Tap it to wake it for a minute; that
+first tap only wakes the screen. Set `SCREEN_SLEEP = None` to keep it on.
+
 The **Orion** widget sits in the top-right corner as a small sky map. It shows
 Orion's direction and height, or when it next rises. Tap it for a full-screen
 view of what you'd see facing that direction. It closes after a minute or on
