@@ -7,7 +7,7 @@ automatically within a few minutes.
 # Location for weather and the sky widgets (default: Toronto)
 LATITUDE = 43.6532
 LONGITUDE = -79.3832
-LOCATION_NAME = "Toronto"
+LOCATION_NAME = "Home"
 
 # "metric" (°C, km/h) or "imperial" (°F, mph)
 UNITS = "metric"
