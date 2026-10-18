@@ -18,7 +18,7 @@ CLOCK_12_HOUR = True
 # Widgets shown on screen, in order.
 # Each name needs a static/widgets/<name>.js file, and, if it needs data
 # from the internet, a widgets/<name>.py file too.
-WIDGETS = ["clock", "weather", "orion"]
+WIDGETS = ["clock", "weather", "orion", "goose"]
 
 # Screen sleep: the screen turns off between these times (24-hour clock).
 # Tap it to wake it for SCREEN_WAKE_SECONDS. Use SCREEN_SLEEP = None to never sleep.
