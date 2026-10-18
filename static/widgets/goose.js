@@ -7,6 +7,8 @@
 // later. Its first visit is about a minute after the display starts, so you
 // see it after each update.
 //
+// On December 25 it wears a Santa hat.
+//
 // Turn it on by adding "goose" to WIDGETS in config.py.
 // On your laptop:
 //   http://localhost:5050/?goose=steal   one trick on repeat, goose never leaves
@@ -36,6 +38,11 @@
         <circle class="g-skull" cx="90" cy="15" r="9" />
         <path class="g-beak" d="M97 11 L113 15 L97 20 Z" />
         <circle class="g-eye" cx="92" cy="12" r="1.9" />
+        <g class="goose-hat">
+          <path class="hat-red" d="M99 8 C99 -3 90 -10 80 -7 C76 -6 73 -3 71 1 C77 -2 81 0 81 8 Z" />
+          <circle class="hat-white" cx="71" cy="2" r="3.6" />
+          <ellipse class="hat-white" cx="90" cy="8" rx="10.5" ry="3.4" />
+        </g>
       </g>
     </svg>`;
   // Kept outside the flipped part so the text never reads backwards
@@ -54,6 +61,10 @@
     .g-skull { fill: #f3f2ec; }
     .g-beak  { fill: #ff9a2e; }
     .g-eye   { fill: #111; }
+    .goose-hat { display: none; }
+    .goose.santa .goose-hat { display: inline; }
+    .hat-red   { fill: #d62828; }
+    .hat-white { fill: #fbfbf7; }
     .leg path { fill: none; stroke: #ff9a2e; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
     .leg-back { transform-origin: 58px 70px; }
     .leg-front { transform-origin: 66px 70px; }
@@ -105,6 +116,14 @@
 
   const forced = new URLSearchParams(location.search).get("goose");
   const fast = forced === "fast";   // quick visits for testing
+  const params = new URLSearchParams(location.search);
+
+  // Santa hat on December 25 (add &santa=1 to the address to preview it)
+  function dressForTheDay() {
+    const d = new Date();
+    const christmas = d.getMonth() === 11 && d.getDate() === 25;
+    g.el.classList.toggle("santa", christmas || params.get("santa") === "1");
+  }
   const MIN = 60000;
   const timing = fast
     ? { first: 3000, visit: 30000, away: () => 20000 }
@@ -320,6 +339,7 @@
   async function arrive() {
     const fromLeft = Math.random() < 0.5;
     g.el.style.display = "";
+    dressForTheDay();
     g.x = fromLeft ? -gw() : W();
     g.y = rand(H() * 0.5, H() - gh());
     g.el.classList.toggle("left", !fromLeft);
@@ -347,6 +367,7 @@
     while (Date.now() < until) {
       if (asleep()) { await pause(5000); continue; }
       const gen = g.gen;
+      dressForTheDay();   // in case a visit runs past midnight
       const name = forced && actions[forced] ? forced : pick(ACTIONS);
       try {
         await actions[name](gen);
