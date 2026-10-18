@@ -7,7 +7,10 @@
 // later. Its first visit is about a minute after the display starts, so you
 // see it after each update.
 //
-// On December 25 it wears a Santa hat.
+// On December 25 it wears a Santa hat. On July 18 it plays a surprise three
+// times (first visit, first visit after noon, last visit before the screen
+// sleeps): it drags in a present, leaves, and pops out of the box.
+// Add &present=1 to the address to make every visit the surprise.
 //
 // Turn it on by adding "goose" to WIDGETS in config.py.
 // On your laptop:
@@ -98,6 +101,20 @@
     .goose-print { position: absolute; width: 1.6vmin; height: 1vmin; border-radius: 50%;
       background: #6b4a2b; opacity: 0.75; animation: g-print-fade 25s linear forwards; }
     @keyframes g-print-fade { 70% { opacity: 0.6; } 100% { opacity: 0; } }
+
+    .gift { position: absolute; left: 0; top: 0; width: 13vmin; height: 13vmin; z-index: 2;
+            will-change: transform; transition: opacity 1s; }
+    .gift-inner { width: 100%; height: 100%; transform-origin: 50% 100%; }
+    .gift svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .gift-lid { transform-origin: 50% 40%; transition: transform 0.9s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.9s; }
+    .gift.shaking .gift-inner { animation: gift-shake 0.14s ease-in-out infinite alternate; }
+    .gift.shaking.hard .gift-inner { animation-duration: 0.08s; }
+    .gift.popped .gift-lid { transform: translate(-30%, -170%) rotate(-55deg); opacity: 0; }
+    @keyframes gift-shake { from { transform: rotate(-5deg) scaleY(1.03); } to { transform: rotate(5deg) scaleY(0.97); } }
+    .confetti { position: absolute; z-index: 4; width: 1vmin; height: 1.6vmin; border-radius: 0.2vmin;
+                animation: confetti-fly 1.6s cubic-bezier(0.1, 0.7, 0.4, 1) forwards; }
+    @keyframes confetti-fly { to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; } }
+    .goose { z-index: 3; transform-origin: 50% 100%; }
 
     .clock-time.goose-wobble { animation: g-wobble 0.5s ease-in-out; }
     @keyframes g-wobble { 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2deg); } }
@@ -361,8 +378,167 @@
     setPose();
   }
 
-  async function visit(stayForMs) {
-    await arrive();
+  // ---- July 18: the present ----
+  const GIFT_SVG = `
+    <div class="gift-inner">
+      <svg viewBox="0 0 100 100" class="gift-body">
+        <rect x="10" y="42" width="80" height="56" rx="3" fill="#e63974" />
+        <rect x="44" y="42" width="12" height="56" fill="#ffd166" />
+        <rect x="10" y="42" width="80" height="6" fill="#000" opacity="0.15" />
+      </svg>
+      <svg viewBox="0 0 100 100" class="gift-lid">
+        <rect x="4" y="28" width="92" height="16" rx="3" fill="#f04f86" />
+        <rect x="44" y="28" width="12" height="16" fill="#ffd166" />
+        <ellipse cx="38" cy="20" rx="13" ry="8" fill="#ffd166" transform="rotate(-25 38 20)" />
+        <ellipse cx="62" cy="20" rx="13" ry="8" fill="#ffd166" transform="rotate(25 62 20)" />
+        <circle cx="50" cy="25" r="6" fill="#f2b632" />
+      </svg>
+    </div>`;
+
+  const isPresentDay = (d) => d.getMonth() === 6 && d.getDate() === 18;
+
+  // When the goose's day ends: when the screen goes to sleep (SCREEN_SLEEP in
+  // config.py), or midnight if it sleeps later than that or not at all
+  function endOfDay(now) {
+    const midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
+    const sleepTimes = Display.config.screenSleep;
+    if (!sleepTimes) return midnight;
+    const [h, m] = sleepTimes[0].split(":").map(Number);
+    const sleepAt = new Date(now); sleepAt.setHours(h, m, 0, 0);
+    return sleepAt > now && sleepAt < midnight ? sleepAt : midnight;
+  }
+
+  // On July 18, which surprise (if any) this visit is: "first", "midday", "last".
+  // awayAfter is how long the goose will be gone after this visit.
+  const surprises = { day: null, visits: 0, done: new Set() };
+  function surpriseFor(now, awayAfter) {
+    const day = now.toDateString();
+    if (surprises.day !== day) { surprises.day = day; surprises.visits = 0; surprises.done.clear(); }
+    const visitNumber = surprises.visits++;
+    if (!isPresentDay(now)) return null;
+    const isLast = now.getTime() + timing.visit + awayAfter >= endOfDay(now).getTime();
+    let slot = null;
+    if (visitNumber === 0) slot = "first";
+    else if (isLast) slot = "last";
+    else if (now.getHours() >= 12) slot = "midday";
+    if (!slot || surprises.done.has(slot)) return null;
+    surprises.done.add(slot);
+    return slot;
+  }
+
+  // Smoothly run fn(t) for t from 0 to 1 over ms
+  function tween(ms, fn) {
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const frame = (now) => {
+        const t = Math.min(1, (now - start) / ms);
+        fn(t);
+        if (t < 1) requestAnimationFrame(frame); else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function confetti(cx, cy) {
+    const colours = ["#ffd166", "#e63974", "#6cb4ff", "#7bd389", "#ffffff"];
+    for (let i = 0; i < 22; i++) {
+      const c = document.createElement("div");
+      c.className = "confetti";
+      c.style.left = `${cx}px`;
+      c.style.top = `${cy}px`;
+      c.style.background = colours[i % colours.length];
+      c.style.setProperty("--dx", `${rand(-18, 18)}vmin`);
+      c.style.setProperty("--dy", `${rand(-24, -6)}vmin`);
+      c.style.setProperty("--rot", `${rand(-400, 400)}deg`);
+      g.layer.appendChild(c);
+      setTimeout(() => c.remove(), 1800);
+    }
+  }
+
+  async function presentSurprise() {
+    g.scripted = true;   // taps are ignored during the surprise
+    const gift = document.createElement("div");
+    gift.className = "gift";
+    gift.innerHTML = GIFT_SVG;
+    g.layer.insertBefore(gift, g.el);
+    const gs = () => gift.offsetWidth;
+    let bx = 0, by = 0;   // gift's top-left, in px
+    const placeGift = () => { gift.style.transform = `translate(${bx.toFixed(1)}px, ${by.toFixed(1)}px)`; };
+
+    // 1. Drag it in: the gift trails behind the goose
+    const fromLeft = Math.random() < 0.5;
+    g.el.style.display = "";
+    dressForTheDay();
+    g.el.classList.toggle("left", !fromLeft);
+    const groundY = H() * rand(0.82, 0.92);
+    g.x = fromLeft ? -gw() : W();
+    g.y = groundY - gh();
+    place();
+    const trail = () => {
+      bx = fromLeft ? g.x - gs() * 0.8 : g.x + gw() - gs() * 0.2;
+      by = g.y + gh() - gs();
+      placeGift();
+    };
+    trail();
+    const dropX = rand(W() * 0.35, W() * 0.65);
+    await walkTo(fromLeft ? dropX + gs() * 0.9 : dropX - gs() * 0.9, groundY, g.gen,
+      { offscreen: true, onStep: trail });
+
+    // 2. Drop it, admire it, walk off
+    setPose("pecking"); await pause(400);
+    setPose("looking"); await pause(900);
+    setPose();
+    const toRight = fromLeft;   // keep going the way it was walking
+    await walkTo(toRight ? W() + gw() / 2 + 10 : -gw() / 2 - 10, groundY, g.gen, { offscreen: true });
+    g.el.style.display = "none";
+
+    // 3. Wait, then the box starts to shake
+    await pause(fast ? 5000 : 15000);
+    gift.classList.add("shaking");
+    await pause(1600);
+    gift.classList.add("hard");
+    await pause(900);
+    gift.classList.remove("shaking", "hard");
+
+    // 4. Pop! Lid flies off, confetti, goose springs up out of the box
+    gift.classList.add("popped");
+    confetti(bx + gs() / 2, by + gs() * 0.4);
+    g.el.style.zIndex = "1";            // behind the box front while it rises
+    g.el.style.display = "";
+    g.el.classList.toggle("left", Math.random() < 0.5);
+    setPose();
+    const startFeet = by + gs() * 0.95, endFeet = by + gs() * 0.72;
+    g.x = bx + gs() / 2 - gw() / 2;
+    await tween(450, (t) => {
+      const e = 1 - Math.pow(1 - t, 3);
+      g.el.style.scale = (0.3 + 0.7 * e).toFixed(3);
+      g.y = startFeet + (endFeet - startFeet) * e - gh();
+      place();
+    });
+    honkBubble(1800);
+    await pause(1900);
+
+    // 5. Hop out onto the ground beside the box
+    g.el.style.zIndex = "";
+    const side = g.el.classList.contains("left") ? -1 : 1;
+    const x0 = g.x, y0 = g.y;
+    const x1 = Math.max(0, Math.min(W() - gw(), bx + gs() / 2 - gw() / 2 + side * gs() * 1.1));
+    const y1 = by + gs() - gh();
+    await tween(600, (t) => {
+      g.x = x0 + (x1 - x0) * t;
+      g.y = y0 + (y1 - y0) * t - Math.sin(Math.PI * t) * gh() * 0.5;
+      place();
+    });
+    g.el.style.scale = "";
+
+    // 6. The empty box fades away
+    setTimeout(() => { gift.style.opacity = "0"; }, 4000);
+    setTimeout(() => gift.remove(), 5200);
+    g.scripted = false;
+  }
+
+  async function visit(stayForMs, { surprise = false } = {}) {
+    if (surprise) await presentSurprise(); else await arrive();
     const until = Date.now() + stayForMs;
     while (Date.now() < until) {
       if (asleep()) { await pause(5000); continue; }
@@ -386,8 +562,10 @@
 
     await pause(timing.first);
     for (;;) {
-      await visit(timing.visit);
-      await pause(timing.away());
+      const away = timing.away();   // decided now, so we know if this is the last visit
+      const surprise = params.get("present") === "1" || !!surpriseFor(new Date(), away);
+      await visit(timing.visit, { surprise });
+      await pause(away);
       while (asleep()) await pause(60000);   // come back after the screen wakes
     }
   }
@@ -406,7 +584,7 @@
       g.el.className = "goose";
       g.el.innerHTML = `<div class="goose-flip">${GOOSE_SVG}</div>${EXTRAS}`;
       el.appendChild(g.el);
-      g.el.addEventListener("click", (e) => { e.stopPropagation(); flee(); });
+      g.el.addEventListener("click", (e) => { e.stopPropagation(); if (!g.scripted) flee(); });
 
       g.el.style.display = "none";   // hidden until its first visit
       life();
