@@ -3,14 +3,23 @@
 // It wanders, honks, steals forecast cards, pecks the clock, tracks mud and
 // naps. Tap it and it honks and runs off.
 //
+// It visits for about 5 minutes, waddles off, and comes back 45-60 minutes
+// later. Its first visit is about a minute after the display starts, so you
+// see it after each update.
+//
 // Turn it on by adding "goose" to WIDGETS in config.py.
-// Watch one trick on repeat on your laptop, e.g.
-//   http://localhost:5050/?goose=steal   (wander, honk, steal, peck, mud, nap)
+// On your laptop:
+//   http://localhost:5050/?goose=steal   one trick on repeat, goose never leaves
+//                                        (wander, honk, steal, peck, mud, nap)
+//   http://localhost:5050/?goose=fast    30-second visits, 20 seconds away
 (function () {
   // ---- Tweak the goose here ----
   const SIZE_VMIN = 15;          // how big the goose is
   const WALK_SPEED = 0.16;       // screen-heights per second
   const RUN_SPEED = 0.6;
+  const VISIT_MINUTES = 5;               // how long each visit lasts
+  const AWAY_MINUTES = [45, 60];         // gone for a random time in this range
+  const FIRST_VISIT_AFTER_MINUTES = 1;   // after the display starts or updates
   const ACTIONS = {              // how often each thing happens (relative)
     wander: 30, idle: 18, honk: 10, steal: 12, peck: 12, mud: 12, nap: 6,
   };
@@ -95,6 +104,13 @@
   const asleep = () => document.body.classList.contains("asleep");
 
   const forced = new URLSearchParams(location.search).get("goose");
+  const fast = forced === "fast";   // quick visits for testing
+  const MIN = 60000;
+  const timing = fast
+    ? { first: 3000, visit: 30000, away: () => 20000 }
+    : { first: FIRST_VISIT_AFTER_MINUTES * MIN,
+        visit: VISIT_MINUTES * MIN,
+        away: () => rand(AWAY_MINUTES[0], AWAY_MINUTES[1]) * MIN };
 
   const g = {
     el: null, layer: null,
@@ -132,9 +148,13 @@
   }
 
   // Walk so the goose's feet end up at (fx, fy)
-  function walkTo(fx, fy, gen, { speed = WALK_SPEED, onStep } = {}) {
-    const tx = Math.max(0, Math.min(W() - gw(), fx - gw() / 2));
-    const ty = Math.max(0, Math.min(H() - gh(), fy - gh()));
+  // offscreen: true lets it walk past the edge (arriving and leaving)
+  function walkTo(fx, fy, gen, { speed = WALK_SPEED, onStep, offscreen = false } = {}) {
+    let tx = fx - gw() / 2, ty = fy - gh();
+    if (!offscreen) {
+      tx = Math.max(0, Math.min(W() - gw(), tx));
+      ty = Math.max(0, Math.min(H() - gh(), ty));
+    }
     return new Promise((resolve, reject) => {
       if (speed > WALK_SPEED) setPose("walking", "running"); else setPose("walking");
       let last = performance.now();
@@ -285,21 +305,69 @@
     } catch (e) { if (e !== ABORT) throw e; }
   }
 
-  async function life() {
-    // Waddle onto the screen before doing anything else
-    try { await walkTo(rand(W() * 0.2, W() * 0.5), H() * rand(0.75, 0.95), g.gen); }
-    catch (e) { if (e !== ABORT) throw e; }
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Keep trying a walk until it finishes; a tap (flee) interrupts it, then
+  // we pick it back up from wherever the goose ran to
+  async function untilDone(fn) {
     for (;;) {
-      if (asleep()) { await new Promise((r) => setTimeout(r, 5000)); continue; }
+      try { return await fn(g.gen); }
+      catch (e) { if (e !== ABORT) throw e; await pause(1500); }
+    }
+  }
+
+  // Waddle in from a random side
+  async function arrive() {
+    const fromLeft = Math.random() < 0.5;
+    g.el.style.display = "";
+    g.x = fromLeft ? -gw() : W();
+    g.y = rand(H() * 0.5, H() - gh());
+    g.el.classList.toggle("left", !fromLeft);
+    place();
+    await untilDone((gen) => walkTo(
+      fromLeft ? rand(W() * 0.15, W() * 0.45) : rand(W() * 0.55, W() * 0.85),
+      g.y + gh(), gen, { offscreen: true }));
+  }
+
+  // Drop anything it's carrying and walk off the nearest side
+  async function leave() {
+    dropCard();
+    await untilDone((gen) => {
+      const [fx, fy] = feet();
+      const toLeft = fx < W() / 2;
+      return walkTo(toLeft ? -gw() / 2 - 10 : W() + gw() / 2 + 10, fy, gen, { offscreen: true });
+    });
+    g.el.style.display = "none";   // nothing to draw while it's away
+    setPose();
+  }
+
+  async function visit(stayForMs) {
+    await arrive();
+    const until = Date.now() + stayForMs;
+    while (Date.now() < until) {
+      if (asleep()) { await pause(5000); continue; }
       const gen = g.gen;
       const name = forced && actions[forced] ? forced : pick(ACTIONS);
       try {
         await actions[name](gen);
       } catch (e) {
-        if (e !== ABORT) { console.error("goose", e); await new Promise((r) => setTimeout(r, 2000)); }
+        if (e !== ABORT) { console.error("goose", e); await pause(2000); }
         // ABORT means it was tapped: flee() is running; give it time
-        await new Promise((r) => setTimeout(r, 1500));
+        await pause(1500);
       }
+    }
+    await leave();
+  }
+
+  async function life() {
+    // A trick on repeat (?goose=steal): stay on screen for good
+    if (forced && actions[forced]) return visit(Infinity);
+
+    await pause(timing.first);
+    for (;;) {
+      await visit(timing.visit);
+      await pause(timing.away());
+      while (asleep()) await pause(60000);   // come back after the screen wakes
     }
   }
 
@@ -319,10 +387,7 @@
       el.appendChild(g.el);
       g.el.addEventListener("click", (e) => { e.stopPropagation(); flee(); });
 
-      // Start just off the left edge; life() walks it in
-      g.x = -gw();
-      g.y = H() * 0.7;
-      place();
+      g.el.style.display = "none";   // hidden until its first visit
       life();
     },
   });
