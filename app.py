@@ -54,6 +54,7 @@ def index():
         # getattr: older config.py files without these lines just never sleep
         "screenSleep": getattr(config, "SCREEN_SLEEP", None),
         "screenWakeSeconds": getattr(config, "SCREEN_WAKE_SECONDS", 60),
+        "animations": getattr(config, "ANIMATIONS", True),
     }
     return render_template(
         "index.html",

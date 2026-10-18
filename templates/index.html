@@ -6,7 +6,8 @@
   <title>Pi Display</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
 </head>
-<body>
+<body class="{{ '' if client_config.animations else 'no-anim' }}">
+  <div id="sky" aria-hidden="true"></div>
   <main id="display">
     {% for name in widgets %}
     <section class="widget" id="widget-{{ name }}" data-widget="{{ name }}"></section>
@@ -15,6 +16,9 @@
 
   <script>window.DISPLAY_CONFIG = {{ client_config | tojson }};</script>
   <script src="{{ url_for('static', filename='app.js') }}?v={{ version }}"></script>
+  {% if client_config.animations %}
+  <script src="{{ url_for('static', filename='sky.js') }}?v={{ version }}"></script>
+  {% endif %}
   {% for name in widgets %}
   <script src="{{ url_for('static', filename='widgets/' ~ name ~ '.js') }}?v={{ version }}"></script>
   {% endfor %}

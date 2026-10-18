@@ -43,6 +43,25 @@ WEATHER_CODES = {
 }
 
 
+def sky_type(code):
+    """Simple category for the animated background (static/sky.js)."""
+    if code in (0, 1):
+        return "clear"
+    if code == 2:
+        return "partly"
+    if code == 3:
+        return "cloudy"
+    if code in (45, 48):
+        return "fog"
+    if code in (71, 73, 75, 77, 85, 86):
+        return "snow"
+    if code >= 95:
+        return "storm"
+    if code >= 51:
+        return "rain"
+    return "clear"
+
+
 def describe(code, is_day=True):
     desc, day_icon, night_icon = WEATHER_CODES.get(code, ("Unknown", "❔", "❔"))
     return desc, day_icon if is_day else night_icon
@@ -91,6 +110,8 @@ def get_data(config):
         "wind": round(cur["wind_speed_10m"]),
         "description": desc,
         "icon": icon,
+        "sky": sky_type(cur["weather_code"]),
+        "is_day": bool(cur.get("is_day", 1)),
         "temp_unit": "°F" if config.UNITS == "imperial" else "°C",
         "wind_unit": "mph" if config.UNITS == "imperial" else "km/h",
         "forecast": forecast,

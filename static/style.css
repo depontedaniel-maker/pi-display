@@ -181,3 +181,115 @@ body.asleep::after {
   background: #000;
   z-index: 1000;
 }
+
+/* ---------- Animations ---------- */
+/* Turn everything off with ANIMATIONS = False in config.py */
+body.no-anim *, body.no-anim *::before, body.no-anim *::after { animation: none !important; transition: none !important; }
+
+#display { position: relative; z-index: 1; }   /* content sits above the sky */
+
+/* Clock: changed digits drop in, colon breathes */
+.clock-time .digit { display: inline-block; }
+.clock-time .digit.roll { animation: digit-roll 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.clock-time .colon { display: inline-block; animation: colon-pulse 2s ease-in-out infinite; }
+@keyframes digit-roll {
+  from { transform: translateY(-0.35em); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes colon-pulse { 50% { opacity: 0.35; } }
+
+/* Weather icon floats gently */
+.wx-icon { animation: icon-float 6s ease-in-out infinite; }
+@keyframes icon-float { 50% { transform: translateY(-1.2vmin); } }
+
+/* ---------- Animated sky (static/sky.js) ---------- */
+#sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: background 2s;
+}
+#sky i { position: absolute; display: block; will-change: transform, opacity; }
+body.asleep #sky { display: none; }       /* nothing animates while the screen is off */
+
+/* Background tints: kept dark so the text stays readable */
+#sky.day   { background: linear-gradient(180deg, #13233f 0%, var(--bg) 70%); }
+#sky.night { background: linear-gradient(180deg, #070b16 0%, var(--bg) 70%); }
+#sky.sky-cloudy.day, #sky.sky-fog.day,
+#sky.sky-rain.day, #sky.sky-snow.day   { background: linear-gradient(180deg, #1a2130 0%, var(--bg) 70%); }
+#sky.sky-storm { background: linear-gradient(180deg, #120f1f 0%, var(--bg) 70%); }
+
+/* Sun: soft glow in the top-left corner, slowly breathing */
+.sun {
+  left: -25vmin; top: -25vmin;
+  width: 75vmin; height: 75vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 110, 0.28) 0%, rgba(255, 170, 80, 0.10) 35%, transparent 65%);
+  animation: sun-breathe 10s ease-in-out infinite;
+}
+@keyframes sun-breathe { 50% { transform: scale(1.08); opacity: 0.8; } }
+
+/* Stars twinkle */
+.star {
+  width: var(--size); height: var(--size);
+  border-radius: 50%;
+  background: #fff;
+  animation: twinkle 5s ease-in-out infinite;
+}
+@keyframes twinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.9; } }
+
+/* Clouds drift across, left to right */
+.cloud {
+  left: 0;
+  width: var(--w); height: calc(var(--w) * 0.45);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(200, 210, 230, var(--o)) 0%, rgba(200, 210, 230, calc(var(--o) * 0.5)) 40%, transparent 70%);
+  animation: drift linear infinite;
+}
+@keyframes drift {
+  from { transform: translateX(-70vmin); }
+  to   { transform: translateX(calc(100vw + 10vmin)); }
+}
+
+/* Rain streaks fall at a slight angle */
+.drop {
+  top: -12vh;
+  width: 1.5px; height: 7vh;
+  background: linear-gradient(transparent, rgba(160, 200, 255, 0.9));
+  animation: rain-fall linear infinite;
+}
+@keyframes rain-fall { to { transform: translate(-6vh, 125vh); } }
+
+/* Snowflakes fall slowly and sway */
+.flake {
+  top: -3vh;
+  width: var(--size); height: var(--size);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  animation-name: snow-fall, snow-sway;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: normal, alternate;
+}
+@keyframes snow-fall { to { transform: translateY(110vh); } }
+@keyframes snow-sway { from { translate: calc(var(--sway) * -1) 0; } to { translate: var(--sway) 0; } }
+
+/* Fog: wide soft bands sliding sideways */
+.fog {
+  left: -50vw;
+  width: 200vw; height: 34vh;
+  margin-top: -8vh;
+  background: radial-gradient(ellipse 50% 50% at center, rgba(190, 200, 215, 0.13) 0%, rgba(190, 200, 215, 0.06) 45%, transparent 100%);
+  animation: fog-slide ease-in-out infinite alternate;
+}
+@keyframes fog-slide { from { transform: translateX(-15vw); } to { transform: translateX(15vw); } }
+
+/* Lightning: a quick double flash */
+.flash { inset: 0; background: #dfe7ff; opacity: 0; }
+.flash.on { animation: lightning 0.9s ease-out; }
+@keyframes lightning {
+  0% { opacity: 0; } 8% { opacity: 0.35; } 16% { opacity: 0.05; }
+  26% { opacity: 0.25; } 100% { opacity: 0; }
+}

@@ -5,6 +5,9 @@ Display.register("weather", {
   refreshSeconds: 300, // server caches for 10 min, so this just picks up new data promptly
 
   render(el, d) {
+    // Animated background (static/sky.js), if animations are on
+    if (window.Sky && d.sky) Sky.set(d.sky, d.is_day);
+
     const days = d.forecast
       .map((f, i) => {
         // "2026-09-28" -> local date without a timezone shift

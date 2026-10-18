@@ -25,5 +25,8 @@ WIDGETS = ["clock", "weather", "orion"]
 SCREEN_SLEEP = ("21:00", "07:00")
 SCREEN_WAKE_SECONDS = 60
 
+# Animations: rolling clock digits and an animated sky that matches the weather.
+ANIMATIONS = True
+
 # Port the local web server runs on
 PORT = 5050
